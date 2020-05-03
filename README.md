@@ -1,13 +1,20 @@
 Random Fourier Features
 ====
 
-Python module of Random Fourier Features (RFF) for regression and support vector classification [1].
+Python module of Random Fourier Features (RFF) for regression, support vector classification [1] and gaussian process.
 Features of this RFF module are:
- * interfaces of the module is quite close to the scikit-learn,
- * module for Support Vector Classification supports GPU inference.
 
-Now, this module only has a module for regression (`PyRFF.RFFRegression`) and classification (`PyRFF.RFFSVC`, `PyRFF_GPU.RFFSVC_GPU`),
-however, I will provide other SVM functions soon.
+* interfaces of the module is quite close to the scikit-learn,
+* module for Support Vector Classification provides GPU inference,
+* module for Gaussian Process provides GPU train and inference.
+
+Now, this module only supports
+
+* regression (`PyRFF.RFFRegression`)
+* support vector classification (`PyRFF.RFFSVC`, `PyRFF_GPU.RFFSVC_GPU`),
+* gaussian process (`PyRFF.GaussianProcessRegression`, `PyRFF.GaussianProcessClassifire`, `PyRFF.GaussianProcessClassifier_GPU`)
+
+however, I will provide other functions soon.
 
 
 ## Requirement
@@ -56,11 +63,12 @@ The following table gives a brief comparison of kernel SVM and SVM with RFF.
 See [the example of RFF SVC module](./examples/rff_svc_for_mnist/README.md) for mode details.
 
 | Method                   | Inference time (us) | Score (%) |
-| :----------------------: | :-----------------: | :-------: |
+|:------------------------:|:-------------------:|:---------:|
 | Kernel SVM               | 4644.9 us           | 96.3 %    |
 | SVM w/ RFF (d=512)       | 39.0 us             | 96.5 %    |
 | SVM w/ RFF (d=1024)      | 96.1 us             | 97.5 %    |
 | SVM w/ RFF (d=1024, GPU) | 2.38 us             | 97.5 %    |
+| GP w/ RFF (d=5120, CPU)  | 342.1 us            | 98.2 %    |
 
 <div align="center">
   <img src="./examples/rff_svc_for_mnist/figures/figure_Inference_Time_and_Accuracy_on_MNIST.png" width="600" height="371" alt="Accuracy for each epochs in SVM with batch RFF" />
@@ -71,12 +79,21 @@ See [the example of RFF SVC module](./examples/rff_svc_for_mnist/README.md) for 
 
  * If number of training data is huge, error message like
    `RuntimeError: The task could not be sent to the workers as it is too large for 'send_bytes'.`
-   will be raised from joblib library. The reason of this error is that sklearn.svm.LinearSVC uses
+   will be raised from the joblib library. The reason of this error is that sklearn.svm.LinearSVC uses
    joblib as a multiprocessing backend, but joblib cannot deal huge size of array which cannot be managed
    with 32 bit address space. In this case, please try `n_jobs = 1` option for `RFFSVC` or `ORFSVC` function.
    Default settings is `n_jobs = -1` which means automatically detect available CPUs and use them.
    (This bug information was reported by Mr. Katsuya Terahata @ Toyota Research Institute Advanced Development.
    Thank you so much for the reporting!)
+
+
+## TODO
+
+[ ] New function: implementation of batch RFF GP (but my GPU is poor to do that...)
+[ ] New function: implementation of RFF Logistic GP
+[ ] Refactoring: current class names are too long
+[ ] Refactoring: gather utility function to `utils.py`
+
 
 ## Licence
 
