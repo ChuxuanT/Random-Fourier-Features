@@ -4,7 +4,7 @@
 # SVM classifier using RFF. Interface of RFFSVC is quite close to sklearn.svm.SVC.
 #
 # Author: Tetsuya Ishikawa <tiskw111@gmail.com>
-# Date  : February 19, 2020
+# Date  : May 25, 2020
 ##################################################### SOURCE START #####################################################
 
 """
@@ -20,7 +20,7 @@ Usage:
 Options:
     --input <str>        Directory path to the MNIST dataset.                [default: ../../dataset/mnist]
     --output <str>       File path to the output pickle file.                [default: result.pickle]
-    --pcadim <int>       Output dimention of Principal Component Analysis.   [default: 256]
+    --pcadim <int>       Output dimention of Principal Component Analysis.   [default: 128]
     --kdim <int>         Hyper parameter of RFF SVM (dimention of RFF)       [default: 128]
     --std_kernel <float> Hyper parameter of RFF SVM (stdev of RFF)           [default: 0.05]
     --std_error <float>  Hyper parameter of RFF SVM (stdev of RFF)           [default: 0.05]
@@ -29,23 +29,10 @@ Options:
     -h, --help           Show this message.
 """
 
-
 import sys
 import os
 
-### Add path to PyRFF.py.
-### The followings are not necessary if you copied PyRFF.py to the current directory
-### or other directory which is included in the Python path.
-current_dir = os.path.dirname(__file__)
-module_path = os.path.join(current_dir, "../../source")
-sys.path.append(module_path)
-
-import time
-import pickle
 import docopt
-import numpy   as np
-import sklearn as skl
-import PyRFF   as pyrff
 
 
 ### Load train/test image data.
@@ -65,25 +52,6 @@ def mat_transform_pca(Xs, dim):
     return np.real(V[:, :dim])
 
 
-### Class for measure elasped time using 'with' sentence.
-class Timer:
-
-    def __init__(self, message = "", unit = "s", devide_by = 1):
-        self.message   = message
-        self.time_unit = unit
-        self.devide_by = devide_by
-
-    def __enter__(self):
-        self.t0 = time.time()
-        return self
-
-    def __exit__(self, ex_type, ex_value, trace):
-        dt = (time.time() - self.t0) / self.devide_by
-        if   self.time_unit == "ms": dt *= 1E3
-        elif self.time_unit == "us": dt *= 1E6
-        print("%s%f [%s]" % (self.message, dt, self.time_unit))
-
-
 ### Main procedure.
 def main(args):
 
@@ -94,33 +62,33 @@ def main(args):
     pyrff.seed(args["--seed"])
 
     ### Create classifier instance.
-    gp = pyrff.RFFGaussianProcessClassifier(dim_output = args["--kdim"], std_kernel = args["--std_kernel"], std_error = args["--std_error"])
+    gp = pyrff.RFFGPC(dim_output = args["--kdim"], std_kernel = args["--std_kernel"], std_error = args["--std_error"])
 
     ### Load training data.
-    with Timer("Loading training data: "):
+    with utils.Timer("Loading training data: "):
         Xs_train = vectorise_MNIST_images(os.path.join(args["--input"], "MNIST_train_images.npy"))
         ys_train = vectorise_MNIST_labels(os.path.join(args["--input"], "MNIST_train_labels.npy"))
 
     ### Load test data.
-    with Timer("Loading test data: "):
+    with utils.Timer("Loading test data: "):
         Xs_test = vectorise_MNIST_images(os.path.join(args["--input"], "MNIST_test_images.npy"))
         ys_test = vectorise_MNIST_labels(os.path.join(args["--input"], "MNIST_test_labels.npy"))
 
     ### Create matrix for principal component analysis.
-    with Timer("Calculate PCA matrix: "):
+    with utils.Timer("Calculate PCA matrix: "):
         T = mat_transform_pca(Xs_train, dim = args["--pcadim"])
 
     ### Train SVM with orthogonal random features.
-    with Timer("SVM learning: "):
+    with utils.Timer("SVM learning: "):
         gp.fit(Xs_train.dot(T), ys_train)
 
     ### Calculate score for test data.
-    with Timer("SVM prediction time for 1 image: ", unit = "us", devide_by = ys_test.shape[0]):
+    with utils.Timer("SVM prediction time for 1 image: ", unit = "us", devide_by = ys_test.shape[0]):
         score = 100 * gp.score(Xs_test.dot(T), ys_test)
     print("Score = %.2f [%%]" % score)
 
     ### Save training results.
-    with Timer("Saving model: "):
+    with utils.Timer("Saving model: "):
         with open(args["--output"], "wb") as ofp:
             pickle.dump({"gp":gp, "pca":T, "args":args}, ofp)
 
@@ -129,6 +97,20 @@ if __name__ == "__main__":
 
     ### Parse input arguments.
     args = docopt.docopt(__doc__)
+
+    ### Add path to the PyRFF modules.
+    ### The followings are not necessary if you copied PyRFF.py to the current directory
+    ### or other directory which is included in the Python path.
+    current_dir = os.path.dirname(__file__)
+    module_path = os.path.join(current_dir, "../../source")
+    sys.path.append(module_path)
+
+    import time
+    import pickle
+    import numpy   as np
+    import sklearn as skl
+    import PyRFF   as pyrff
+    import utils
 
     ### Convert all arguments to an appropriate type.
     for k, v in args.items():
